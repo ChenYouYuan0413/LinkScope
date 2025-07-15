@@ -1,86 +1,114 @@
-# LinkScope
-
 **[简体中文](README.md) | English**
+
+<div align=center>
+	<img src="imgs/icon.svg" height="100px"/>
+	<h1>LinkScope</h1>
+</div>
+
+<div align=center>
+	<font size=3>
+		<b>Non-intrusive Hardware Debugging Tool</b><br>
+		<b>Variable Oscilloscope · Online Value Modification · Data Export · Log Output</b>
+	</font>
+</div>
+
+<br>
+
+<div align=center>
+	<p>
+		<a href="https://gitee.com/skythinker/link-scope">
+			<img src="https://gitee.com/skythinker/link-scope/badge/star.svg"/>
+			<img src="https://gitee.com/skythinker/link-scope/badge/fork.svg"/>
+		</a>
+		<a href="https://github.com/Skythinker616/LinkScope">
+			<img src="https://img.shields.io/github/stars/skythinker616/LinkScope?logo=github&style=flat"/>
+			<img src="https://img.shields.io/github/forks/skythinker616/LinkScope?logo=github&style=flat"/>
+		</a>
+		<img src="https://img.shields.io/badge/License-GPL3.0-red"/>
+	</p>
+</div>
 
 ---
 
-## Project Introduction
+## Project Overview
 
-This program is developed using QT and is used for hardware device debugging. It can directly drive serial ports or various debuggers (based on OpenOCD support).
+This application directly interfaces hardware debuggers with microcontrollers, parses compiled symbol files to obtain a variable table, and enables non-intrusive debugging of target chips (no need to modify the chip’s firmware).
+
+The program is developed with Qt, and utilizes OpenOCD to support a wide range of debuggers and MCUs.
+
+Additionally, serial port connection is supported for any chip with a UART—simply port a provided firmware stub.
 
 **Main Features**
 
-* Real-time viewing and modifying variable values
+* Real-time variable read and modification
 
-* Real-time plotting of variable value waveforms
+* Real-time waveform plotting for variable values
 
-* Exporting sample data
+* Data export
 
 * Formatted log output
 
-**Connection Modes**
+**Connection Methods**
 
-* Debugger Mode: The software directly drives the debugger to read target chip data.
+The software provides two ways to connect to the target chip:
 
-	* No need to modify the target chip program
+* Via debugger:
 
-	* In theory, it supports various debuggers and hardware chips supported by OpenOCD, such as STLink, JLink, CMSIS-DAP, and STM32 series.
+	* Non-intrusive: no changes required to the target’s firmware
 
-		> OpenOCD Official Documentation: [Supported Debuggers](https://openocd.org/doc/html/Debug-Adapter-Hardware.html), [Supported Chips](https://openocd.org/doc/html/CPU-Configuration.html#Target-CPU-Types)
+	* In principle, supports all debuggers and MCUs compatible with OpenOCD, such as STLink, JLink, CMSIS-DAP, STM32 series, etc.
 
-	* For chips that require dedicated OpenOCD drivers (such as ESP32C3), you can manually start the OpenOCD process externally before connecting.
+		> See official OpenOCD docs: [Supported Debug Adapters](https://openocd.org/doc/html/Debug-Adapter-Hardware.html), [Supported CPUs](https://openocd.org/doc/html/CPU-Configuration.html#Target-CPU-Types)
 
-	* The maximum sampling rate is approximately 100Hz.
+	* For chips that require dedicated OpenOCD drivers (e.g. ESP32C3), external OpenOCD processes can be started manually and connected to afterward
 
-* Serial Port Mode: The software communicates with the target chip through a serial port.
+	* Maximum sampling rate: ~100Hz
 
-	* A certain program needs to be ported to the target chip.
+* Via serial port:
 
-	* It can support almost all chips with serial ports.
+	* Intrusive: requires porting a firmware stub to the target chip
 
-	* The maximum sampling rate is approximately 80Hz.
+	* Supports any chip with a UART
 
-![Running Demo](imgs/run-demo.png)
+	* Maximum sampling rate: ~80Hz
+
+![Demo Running](imgs/run-demo.png)
 
 ---
 
-## Usage
+## Getting Started
 
-1. If using serial port connection or needing to use the log function, you need to first port the corresponding lower-level program to the target chip.
+1. If using a serial connection, or if you need logging, please refer to the [Serial Port Porting Instructions](lower/serial/README.md) and [Log Porting Instructions](lower/log/README.md) to port the corresponding firmware to your target device.
 
-	> Please refer to [Serial Port Porting Instructions](lower/serial/README.md) and [Log Porting Instructions](lower/log/README.md)
+2. Download the latest release, extract it, and double-click `LinkScope.exe` to run.
 
-	> Note: Serial port and log functions do not conflict and can be used simultaneously.
+3. Set your compiled symbol file (such as AXF or ELF), then specify variables to view.
 
-2. Download the latest release, unzip it, and double-click `LinkScope.exe` to run the program.
+	* Add variables:
 
-3. Click on "Set Symbol File" and then set the variables to be viewed.
+		* Via the variable selection window
 
-	* Adding Variables:
+		* Or enter them manually in the last row of the main table, under the variable name column
 
-		* Add them in the variable selection window (you need to set the symbol file first).
+	* Remove variables:
 
-		* Manually fill in the variable name in the last row of the main window table.
+		* Right-click the variable name
 
-	* Deleting Variables:
+		* Or select it and press Del
 
-		* Right-click on the variable name.
+	> Note: The variable name can be any legal C expression supported by GDB. See [Advanced Usage](#advanced-usage). Compound types like structs can be viewed only, not edited or plotted.
 
-		* Click on the variable name to select it and press the Del key.
+4. Select a connection mode and connect; once connected, sampling begins.
 
-	> Note: The added variable names can be any valid C language expression. For advanced usage, you can refer to [Advanced Usage Instructions](#advanced-usage-instructions); complex types like structures can only be viewed and cannot be modified or plotted.
+	* In debugger mode, select your debugger and target chip from the dropdown, then click Connect. Or check “External Process” to link to an already running OpenOCD process.
 
-4. Choose the connection mode, connect to the chip, and after successful connection, the program will start sampling.
+	* In serial mode, click “Refresh Serial Ports” to list available ports, select the correct one, and click Connect.
 
-	* In Debugger Mode, select the debugger and chip type in the drop-down box, and click "Connect Target." Alternatively, check "External Process" to connect directly to a running OpenOCD process.
+5. Edit the `Modify Variable` column to change variable values. Double-click the `Plot Color` column to select a plot color.
 
-	* In Serial Port Mode, click "Refresh Serial Ports" to load the serial port list, select the connected serial port, and click "Connect Target."
+6. Click on a `Variable Name` cell to highlight its plotted waveform; its current and selected values (mouse hover) are displayed in the lower left.
 
-5. Edit the `Modify Variable` column to modify variable values, and double-click the `Graph Color` column to choose plot colors.
-
-6. Click on the `Variable Name` column to select the corresponding variable. The graph window will display the waveform in bold, and the lower-left corner will show the current value and the viewing value (drag the mouse to view).
-
-7. In the graph window, use the scroll wheel in combination with `Ctrl`, `Shift`, and `Alt` to zoom and pan the view.
+7. In the plot window, use the mouse wheel with `Ctrl`, `Shift`, or `Alt` for zooming and panning.
 
 ![Operation Demo](imgs/oper-sample.gif)
 
@@ -88,156 +116,156 @@ This program is developed using QT and is used for hardware device debugging. It
 
 ---
 
-## Main Menu Items Explanation
+## Main Menu Items
 
-* `Refresh Connection Configuration`: If you have created your own configuration file, you can use this menu item to load the configuration file into the drop-down box. Please refer to [Advanced Usage Instructions](#advanced-usage-instructions).
+* `Refresh Connection Config`: Reload configuration files you’ve edited or created into the dropdown lists. See [Advanced Usage](#advanced-usage).
 
-* `Save Configuration`: All configuration settings, including connection mode, debugger model, chip model, symbol file path, and variable configurations, can be saved to a configuration file using this menu item.
+* `Save Config`: Save the configured connection mode, debugger type, MCU model, symbol file path, and variable setup to a config file.
 
-* `Import Configuration`: Reloads the saved configuration file back into the software.
+* `Import Config`: Reload a previously saved config file.
 
-* `Export Data`: Exports the sampled data of various variables to a CSV table file.
+* `Export Data`: Export all sampled variable data to a CSV file.
 
-* `Advanced Settings`: Opens the advanced settings window, where you can configure serial port parameters, sampling frequency, GDB port, etc.
+* `Advanced Settings`: Open the advanced settings dialog, with options for serial configuration, sample rate, GDB port, etc.
 
 ---
 
-## Advanced Usage Instructions
+## Advanced Usage
 
-* You can enter any C language expression supported by GDB in the variable name field.
+* Variable expressions can be any C expressions supported by GDB.
 
-	Assuming the target program `main.c` has the following global variables:
+	Assuming the following global variables in `main.c` of your target program:
 
 	```c
-	static int g_int = 0; // Static global variable
-	int g_arr[10] = {0}; // Global array
+	static int g_int = 0; // static global variable
+	int g_arr[10] = {0}; // global array
 	struct Pack {
-		int var1,var2;
-	} g_pack = {0}; // Global structure variable
+		int var1, var2;
+	} g_pack = {0}; // global struct variable
 	```
 
-	You can use variable names for the following queries:
+	Example expressions:
 
 	```c
-	g_int // View the value of the variable g_int
-	&g_int // View the address of g_int
-	g_pack.var1 // View the value of the member variable var1 in g_pack
-	g_pack.var1+g_pack.var2 // Sum of two variables
-	p_arr[0] or *g_arr // View the first element of the g_arr array
-	g_pack // View the entire structure (cannot plot)
-	g_arr[2]@3 // View g_arr[2] to g_arr[4] (cannot plot)
-	'main.c'::g_int // Specify to view g_int in the main.c file
-	*(int*)0x20005c5c // View an int data at address 0x20005c5c (this method does not require setting a symbol file)
+	g_int // value of g_int
+	&g_int // address of g_int
+	g_pack.var1 // value of g_pack.var1
+	g_pack.var1+g_pack.var2 // sum of two variables
+	g_arr[0] or *g_arr // value of first element in g_arr
+	g_pack // the whole struct (view only)
+	g_arr[2]@3 // g_arr[2] through g_arr[4] (view only)
+	'main.c'::g_int // specifically g_int from main.c
+	*(int*)0x20005c5c // value at address 0x20005c5c (works even without a symbol file)
 	```
 
-* You can customize the connection in Debugger Mode by modifying the OpenOCD configuration file.
+* Custom OpenOCD configurations for debugger connection:
 
-	* The configuration files are located in the `openocd/share/openocd/scripts` directory under the OpenOCD installation. You can modify or add files there.
+	* Files are located under `openocd/share/openocd/scripts/target` and `interface`; you can modify or add your configs there.
 
-	* The configuration syntax can be found in the [OpenOCD Official Documentation](https://openocd.org/doc/html/Config-File-Guidelines.html).
+	* See [OpenOCD Config File Guidelines](https://openocd.org/doc/html/Config-File-Guidelines.html) for syntax.
 
-	* If you add a new configuration file, you can use the `Refresh Connection Configuration` menu item to load it into the software's drop-down box.
-
----
-
-## Usage Notes
-
-* Without specifying a symbol file, you cannot use variable names and can only view by absolute address.
-
-* After modifying the symbol file path, you need to reconnect.
-
-* This program does not have a download function. Please make sure to have downloaded the specified program to the target chip before connecting. If you change to a different type of debugger, even if the chip program has not changed, you should download the program again using the changed debugger.
-
-* The lower-level program should use the version distributed together with the upper-level software. After updating the upper-level software, you should also update the lower-level program.
+	* After adding, load them into the software via `Refresh Connection Config`.
 
 ---
 
-## Known Issues and Solutions
+## Notes
 
-* If the program crashes in Debugger Mode and fails to connect to the target in the next run, you can try manually finding the `openocd.exe` process and forcibly terminating it.
+* Without a symbol file, variable names are unavailable; only absolute addresses can be monitored.
 
-* In Serial Port Mode, reading a single byte from address 0 always results in 0. To read address 0, use a type larger than 1 byte.
+* If you change the symbol file path, reconnect is required.
+
+* This software does not perform flash programming—make sure your firmware has already been flashed before connecting. If you use a different debugger, even with the same MCU firmware, re-flashing is recommended.
+
+* Serial and log firmware stubs should match the LinkScope version. Update the firmware after updating the PC software.
 
 ---
 
-## Other Information
+## Known Issues
 
-**Sampling Speed**
+* If the application crashes in debugger mode, it may not reconnect on next startup. If so, manually end any lingering `openocd.exe` processes.
 
-* The sampling speed is related to CPU usage, the number of added variables, log output frequency, etc. The program will sample at the highest possible speed.
+* In serial mode, reading a single byte from address 0 always returns 0.
 
-* The sampling speed mentioned in the introduction was tested on an `i5-8265U` CPU under nearly idle conditions, with a single variable added and the log closed.
+---
 
-* In Debugger Mode, it takes about 50ms to get a single log, and in Serial Port Mode, it takes about 90ms. The sampling process cannot proceed during log acquisition, and if there are many logs, it will significantly impact the sampling speed.
+## Additional Information
 
-**Supported Devices**
+**About Sampling Rate**
 
-* Although theoretically supports all devices supported by built-in OpenOCD, due to various factors, it may still not work on some devices.
+* Sampling rate depends on CPU load, number of variables, log output frequency, etc. The application samples as fast as possible.
 
-* Currently tested devices include:
+* The rates in the introduction were measured on an `i5-8265U` CPU under nearly idle load, with a single variable and logging disabled.
+
+* In debugger mode, fetching one log entry takes about 50ms; about 90ms in serial mode. Sampling is interrupted during log retrieval; many logs will reduce sampling rate.
+
+**About Supported Hardware**
+
+* While all OpenOCD-supported devices are theoretically compatible, real-world issues may prevent correct operation on some platforms.
+
+* Verified/tested devices so far include:
 
 	* Debuggers: STLINK-V2, CMSIS-DAP
 
-	* Target Chips: STM32F103RCT6, STM32F103C8T6, STM32F407ZGT6, STM32F407IGH6, ESP32C3 (built-in JTAG + [dedicated OpenOCD](https://github.com/espressif/openocd-esp32))
+	* Target MCUs: STM32F103RCT6, STM32F103C8T6, STM32F407ZGT6, STM32F407IGH6, ESP32C3 (built-in JTAG + [dedicated OpenOCD](https://github.com/espressif/openocd-esp32))
 
 ---
 
-## Development Notes
+## Developer Notes
 
-> Note: If you wish to contribute, you can read this section. If you only need to use the software, you can skip it.
+> Note: If you'd like to contribute, please read this section. If you only wish to use the software, you can ignore it.
 
 **Development Environment**
 
 * IDE: Qt Creator
 
-* QT Version: 5.9.9
+* Qt Version: 5.9.9
 
-**Running Process Overview**
+**Runtime Architecture**
 
-* In Debugger Mode, when connecting to the target, the program will start an OpenOCD process in the background for the connection and command the GDB process to connect to OpenOCD. In Serial Port Mode, OpenOCD is replaced by a TCP server to parse GDB's RSP commands and exchange serial port data.
+* In debugger mode, when connecting, the program launches an OpenOCD process in the background and has GDB connect to it. In serial mode, OpenOCD is replaced by a TCP server that interprets GDB’s RSP protocol and forwards it over UART.
 
-	![Program Structure Diagram](imgs/process-block-diagram.png)
+	![Process Block Diagram](imgs/process-block-diagram.png)
 
-* During the running process, the main process communicates with the GDB process via standard input/output. When a variable is added, the `display expr` command is used to add the variable to GDB's watchlist, and the program sends the `display` command at regular intervals (every 10ms) to update the user interface by regular expression parsing.
+* The main process communicates with GDB via stdin/stdout. When you add a variable, it sends a `display expr` command to GDB’s display list. It sends `display` every 10ms, parses output via regex, and updates the UI.
 
-* The program has a microsecond-level timer. When receiving a variable sampling data, it records the current timestamp from the timer and updates the historical data for plotting in the graph window.
+* A microsecond timer records timestamps for each received variable sample, tagging data for plotting; the graph window continuously renders historied data.
 
-* GDB does not support non-ASCII characters in the symbol file path. Therefore, before connecting to GDB, the specified symbol file is copied to the GDB directory and read using a relative path. The temporary file is deleted when disconnecting.
+* GDB does not accept non-ASCII paths for symbol files. Therefore, before connecting, the symbol file is copied to the GDB directory with an ASCII name and loaded via a relative path; the temp file is deleted on disconnect.
 
-* The variable selection window runs another GDB process internally to parse the symbol file. It stores the variable information in a tree structure, and when the user expands one level of the tree, it uses the `info variables`, `whatis`, and `ptype` commands to get the next level of variable type information from GDB and parse it using regular expressions.
+* The variable selection window uses a separate GDB process to parse the symbol file, storing variable structures as a tree. When you expand a node, it queries GDB with `info variables`, `whatis`, or `ptype` as needed, parses results via regex, and builds the hierarchy.
 
-* The log lower-level program creates a buffer queue, and the lower-level program outputs logs to the buffer. The program uses the GDB print command to dequeue and parse logs for display at regular intervals.
+* The logging firmware stub maintains a queue; logs are output into the buffer, and the main program routinely dequeues and displays them via a GDB print command.
 
-**Repository File Description**
+**Repository File Structure**
 
 * `mainwindow.cpp/h`: Main window
 
-* `graphwindow.cpp/h`: Graph window
+* `graphwindow.cpp/h`: Plot window
 
 * `listwindow.cpp/h`: Variable selection window
 
 * `logwindow.cpp/h`: Log window
 
-* `aboutwindow.cpp/h`: About window
+* `aboutwindow.cpp/h`: About dialog
 
-* `helpwindow.cpp/h`: Help window
+* `helpwindow.cpp/h`: Help dialog
 
 * `openocd.cpp/h`: OpenOCD process control
 
-* `serialocd.cpp/h`: Serial port server logic, responsible for receiving GDB's TCP connection and connecting to the lower-level program through the serial port
+* `serialocd.cpp/h`: Serial server logic (receives GDB TCP, communicates with firmware via serial port)
 
 * `gdbprocess.cpp/h`: GDB process control and output parsing
 
-* `vartype.h`: Variable-related data type definitions
+* `vartype.h`: Variable type definitions
 
-* `qss`: QSS style file
+* `qss`: QSS style files
 
-* `gdb`/`openocd`: gdb and openocd executables and configuration files, not involved in compilation, need to be manually placed in the same directory as the executable after compilation
+* `gdb`/`openocd`: GDB and OpenOCD binaries/configs (not built, must be manually placed beside the executable after build)
 
-* `lower/log`/`lower/serial`: Lower-level program code
+* `lower/log`/`lower/serial`: Firmware code for logging/serial connection
 
 **TODO**
 
-* Increase the sampling frequency
+* Increase sampling rate
 
-* Add support for local programs
+* Add support for native (host) debugging
