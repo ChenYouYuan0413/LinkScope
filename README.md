@@ -266,6 +266,108 @@
 
 **TODO**
 
-* 提升采样频率
-
 * 增加对本地程序的支持
+
+---
+
+## 🚀 Enhanced Edition（macOS 适配 + VSCode 集成 + 高速模式）
+
+以下为在原版基础上新增的功能和适配修改。
+
+### 环境要求
+
+| 依赖 | 版本 | 安装方式 |
+|------|------|----------|
+| Qt 5 | 5.15+ | `brew install qt@5` |
+| arm-none-eabi-gdb | 17.2 | `brew install arm-none-eabi-gcc` |
+| sqlite3 | 系统自带 | - |
+| VSCode Cortex-Debug | 1.12.1+ | 扩展 `marus25.cortex-debug` |
+
+### 新增功能
+
+#### 1. VSCode Cortex-Debug Live Watch 同步
+
+- 连接时自动读取 VSCode workspace state 中的 Watch 变量列表
+- 每 2 秒轮询检测增删，自动同步到 LinkScope
+- 支持自动展开结构体（`p` → `p.x`, `p.y`, `p.color.r` 等），支持多级嵌套
+- 通过「高级设置」配置项目目录，自动扫描 `workspaceStorage` 找到对应 state.vscdb
+
+**配置路径**：
+```
+~/Library/Application Support/Code/User/workspaceStorage/<id>/state.vscdb
+→ key "marus25.cortex-debug" → livewatch.watchTree
+```
+
+#### 2. 高速批量采样模式（~3kHz）
+
+- **批量内存读取**：一次 GDB `x/Nwx` 命令读取变量所在整块内存区域，本地按偏移拆值
+- **绕过 GDB 变量查找**：连接时一次性解析所有变量地址（nm -S + GDB print &），运行时用裸地址 `x/1wx` / `x/1hx` / `x/1bx` 读取
+- **类型感知**：自动检测 uint8_t/int8_t/uint16_t/int16_t/float 等类型，进行符号扩展和 IEEE 754 转换
+- **解除 Hz 限制**：高速模式下 `watchTimer.setInterval(0)` 以 Qt 事件循环最大速度触发
+- **实时 FPS 显示**：日志窗口每 500 帧输出实际采样率
+
+**速度对比**：
+
+| 模式 | 采样方式 | 典型速度 |
+|------|---------|---------|
+| 标准模式（GDB display） | GDB 变量名查找 + 逐个读取 | ~100Hz |
+| 高速模式（批量 x/Nwx） | 一次读整块内存 | ~3kHz |
+
+#### 3. 窗口停靠系统
+
+- 图形窗口、日志窗口、变量选择器从独立 `QDialog` 改为 `QDockWidget` 嵌入主窗口
+- 支持拖拽合并、Tab 分页、拖拽调整大小、拖出变为浮动窗口
+- 布局状态自动保存，重启恢复
+
+#### 4. UI 精简
+
+- 调试模式选择、接口/目标下拉、外部 OpenOCD、Cortex 同步、高速模式 → 移到「高级设置」
+- ELF 符号文件选择 → 移到「高级设置」
+- 主窗口只保留变量表格 + 操作栏（连接/暂停/复位/日志）
+- 新增「暂停」按钮，发送 GDB `monitor halt`/`monitor resume` 暂停/恢复采样
+
+#### 5. 多 GDB 连接共享
+
+- OpenOCD 配置 `gdb-max-connections 4`，允许 Cortex-Debug（2 连接）和 LinkScope（1-2 连接）同时接入
+- LinkScope 勾选「外部 OpenOCD」模式，连接到已运行的 OpenOCD 实例
+
+---
+
+### macOS 适配修改
+
+原版为 Windows 开发，以下为 macOS 编译和运行所需的修改：
+
+| 问题 | 文件 | 修复 |
+|------|------|------|
+| `#include <windows.h>` | `openocd.h`, `mainwindow.h` | `#ifdef Q_OS_WIN32` 宏保护 |
+| `setNativeArguments()` | `gdbprocess.cpp`, `openocd.cpp` | Windows 专用 API，macOS 改用 `setArguments()` + `setProgram()` |
+| `taskkill` 杀进程 | `openocd.cpp`, `mainwindow.cpp` | macOS 改用 `QProcess::terminate()` |
+| GDB 输出 `\r\n` → `\n` | `gdbprocess.cpp`, `listwindow.cpp` | 所有正则 `\r\n` → `\r?\n`，GDB 提示符检测改用 `trimmed().endsWith("(gdb)")` |
+| `QDialog → QWidget` | `graphwindow.h/cpp`, `listwindow.h/cpp`, `logwindow.h/cpp` | 改为 QWidget 以支持 QDockWidget 嵌入 |
+| `.ui` 文件基类 | `graphwindow.ui`, `listwindow.ui`, `logwindow.ui` | `QDialog` → `QWidget` |
+| GDB 启动参数 | `gdbprocess.cpp` | 添加 `-q -nx -ex "set confirm off"` 参数 |
+| 临时文件路径 | `gdbprocess.cpp` | App bundle 无写权限，改用 `QDir::tempPath()` |
+| 配置文件路径 | `mainwindow.cpp` | `conf.ini` 相对路径 → `~/.linkscope/conf.ini` 绝对路径 |
+| `1u << 32` 未定义行为 | `mainwindow.cpp` | ARM64 shift mask 导致 4 字节变量归零，特判 `size >= 4` 用 `0xFFFFFFFF` |
+| GDB 管道分批送达 | `gdbprocess.cpp` | `trimmed().endsWith("(gdb)")` 健壮检测提示符 |
+| UI 布局插入 | `mainwindow.cpp` | 通过 `findChild` 找到 `groupBox_4` 插入暂停按钮 |
+
+---
+
+### Windows 端迁移和二次开发注意事项
+
+1. **环境准备**：安装 Qt 5.15+（MSVC 或 MinGW）、ARM GCC 工具链
+2. **编译**：`qmake LinkScope.pro && make`（或 `nmake`）
+3. **运行依赖**：`openocd.exe` 和 `gdb.exe` 需放在可执行文件同目录的 `openocd/bin/` 和 `gdb/` 下
+4. **路径分隔符**：代码中 `applicationDirPath()` + `"/"` 在 Windows 下也可用（Qt 会转换）；原版用的 `\\` 无需改动
+5. **进程管理**：Windows 保留 `taskkill` / `tasklist` 相关代码（已用 `#ifdef Q_OS_WIN32` 保护）
+6. **配置存储**：Windows 下 `QSettings("conf.ini", ...)` 相对路径写到 exe 同目录，如需集中管理可改为 `QStandardPaths`
+7. **GDB 二进制**：macOS 版用 `/opt/homebrew/bin/arm-none-eabi-gdb`，Windows 版用 `gdb/gdb.exe`（保持原版逻辑）
+8. **跨平台共用**：所有平台相关代码均用 `#ifdef Q_OS_WIN32` / `#else` 分支，mac 分支可直接在 Linux 上使用（需调整 GDB 路径）
+9. **新增文件清单**：
+   - `mainwindow.h/cpp` — 大量新增函数（syncWatchVars、resolveVarAddresses、valueToString、struct 展开等）
+   - `configwindow.h/cpp` — 扩展 ConfigWindowParam + 动态 UI
+   - `gdbprocess.cpp` — runCmd 修复、启动参数、跨平台 GDB 路径
+   - `vartype.h` — VarInfo 增加 address/size/isSigned/isFloat 字段
+   - `.gitignore` — 新增构建产物排除
+10. **恢复 Windows 原版**：切到 `master` 分支即可；`mac` 分支包含所有 macOS 适配和功能增强
