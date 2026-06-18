@@ -4,7 +4,9 @@
 #include <QObject>
 #include <QProcess>
 #include <qcoreapplication.h>
+#ifdef Q_OS_WIN32
 #include <windows.h>
+#endif
 
 class OpenOCD : public QObject
 {

@@ -18,6 +18,10 @@ struct VarInfo{
     bool enableScope;//是否使能绘图
     QList<SamplePoint> samples;//采样点列表
     QColor lineColor;//图线颜色
+    uint32_t address = 0;//变量内存地址（高速模式用）
+    uint8_t  size = 4;   //字节大小，1/2/4，默认4
+    bool isSigned = false;
+    bool isFloat  = false;
 };
 
 #endif // VARTYPE_H

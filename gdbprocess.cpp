@@ -1,4 +1,5 @@
 #include "gdbprocess.h"
+#include <QDir>
 
 GDBProcess::GDBProcess(QObject *parent) : QObject(parent)
 {
@@ -15,20 +16,28 @@ QString GDBProcess::runCmd(const QString &cmd)
 {
     process->readAllStandardOutput();
     process->write(cmd.toStdString().c_str());
-    QString res="";
-    do{
+    QString res;
+    do {
         process->waitForReadyRead(1);
-        res+=process->readAllStandardOutput();
-    }while(!res.endsWith("(gdb) "));
+        res += process->readAllStandardOutput();
+    } while (!res.trimmed().endsWith("(gdb)"));
     return res;
 }
 
 //启动GDB进程
 void GDBProcess::start()
 {
+#ifdef Q_OS_WIN32
     process->setProgram(QCoreApplication::applicationDirPath()+"/gdb/gdb.exe");//设置程序路径
     process->setWorkingDirectory(QCoreApplication::applicationDirPath()+"/gdb");//设置工作路径
     process->setNativeArguments("-q");//设置gdb在安静模式下打开
+#else
+    process->setProgram("/opt/homebrew/bin/arm-none-eabi-gdb");
+    process->setArguments({"-q", "-nx", "-ex", "set confirm off"});
+    QString gdbDir = QDir::tempPath() + "/linkscope_gdb";
+    QDir().mkpath(gdbDir);
+    process->setWorkingDirectory(gdbDir);
+#endif
     process->start();//QProcess::Unbuffered|QProcess::ReadWrite);
     runCmd("set confirm off\r\n");//设置不要手动确认
     runCmd("set print pretty on\r\n");//设置结构体规范打印
@@ -44,8 +53,7 @@ void GDBProcess::stop()
 //命令GDB连接到远程目标，参数为"地址:端口号"
 void GDBProcess::connectToRemote(const QString &addr)
 {
-    runCmd("target remote "+addr+"\r\n");
-    runCmd("monitor resume\r\n");//恢复目标程序运行
+    runCmd("target extended-remote "+addr+"\r\n");
 }
 
 //命令GDB从远处目标断开
@@ -64,17 +72,17 @@ void GDBProcess::setTempSymbolFileName(const QString &name)
 void GDBProcess::loadSymbolFile(const QString &path)
 {
     unloadSymbolFile();//确保卸载当前的临时文件
-    QString tempPath=QCoreApplication::applicationDirPath()+"/gdb/"+tempSymbolFileName;//拼接临时文件路径
-    QFile::copy(path,tempPath);//将所选符号文件复制为临时文件
-    runCmd("symbol-file "+tempSymbolFileName+"\r\n");//设置符号文件
+    QString tempPath=QDir::tempPath()+"/linkscope_gdb/"+tempSymbolFileName;
+    QFile::copy(path,tempPath);
+    runCmd("symbol-file "+tempPath+"\r\n");
 }
 
 //卸载符号文件
 void GDBProcess::unloadSymbolFile()
 {
     runCmd("symbol-file\r\n");//取消符号文件，解除文件占用
-    QString tempPath=QCoreApplication::applicationDirPath()+"/gdb/"+tempSymbolFileName;//拼接临时文件路径
-    QFile::remove(tempPath);//删除复制过来的临时文件
+    QString tempPath=QDir::tempPath()+"/linkscope_gdb/"+tempSymbolFileName;
+    QFile::remove(tempPath);
 }
 
 //设置display列表
@@ -92,7 +100,7 @@ QString GDBProcess::captureValueFromDisplay(const QString &rawDisplay, const QSt
     for(int i=0;i<name.length();i++)//将变量名每个转换为16进制格式，用于正则匹配
         regName+=QString("\\x%1").arg(name.at(i).unicode(),0,16);
 
-    QRegExp rx(QString("\\d+:\\s%1\\s=\\s(.*)\\r\\n[\\d\\(]").arg(regName));//正则匹配模板，匹配选中的变量名并截取出变量值
+    QRegExp rx(QString("\\d+:\\s%1\\s=\\s(.*)\\r?\\n[\\d\\(]").arg(regName));//正则匹配模板，匹配选中的变量名并截取出变量值
     rx.setMinimal(true);//使用非贪心模式
 
     if(rx.indexIn(rawDisplay)!=-1)
@@ -119,7 +127,7 @@ QList<uint> GDBProcess::getUintArrayFromDisplay(const QString &rawDisplay)
     QRegExp rx("\\{(.*)\\}");
     rx.indexIn(rawDisplay);
     QString raw=rx.cap(1);
-    raw=raw.replace("\r\n  ","");
+    raw=raw.replace(QRegExp("\\r?\\n  "),"");
     QStringList rawList=raw.split(", ");
     QList<uint> numList;
     for(int index=0;index<rawList.size();index++)
@@ -152,7 +160,7 @@ bool GDBProcess::checkExpandableType(const QString &varFullName)
 {
     QString whatis=runCmd(QString("whatis %1\r\n").arg(varFullName));//先使用whatis指令判断数组和函数指针
     whatis.remove("type = ");
-    whatis.remove("\r\n(gdb) ");
+    whatis.remove(QRegExp("\\r?\\n\\(gdb\\) "));
     if(whatis.contains("["))
         return true;
     if(whatis.contains('('))

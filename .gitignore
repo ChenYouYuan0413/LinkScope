@@ -1,0 +1,14 @@
+# Build artifacts
+*.o
+moc_*.cpp
+ui_*.h
+qrc_*.cpp
+.qmake.stash
+*.pro.user
+
+# macOS app bundle temps
+LinkScope.app/Contents/MacOS/gdb/
+LinkScope.app/Contents/MacOS/openocd/
+
+# System
+.DS_Store

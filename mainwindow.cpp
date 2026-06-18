@@ -46,7 +46,7 @@ MainWindow::MainWindow(QWidget *parent)
     autosaveTimer=new QTimer(this);//创建自动保存定时器
     autosaveTimer->setInterval(5000);//5s自动保存
     autosaveTimer->start();
-    connect(autosaveTimer,&QTimer::timeout,this,[=]{saveToFile("autosave.ini");});
+    connect(autosaveTimer,&QTimer::timeout,this,[=]{saveToFile(QDir::homePath()+"/.linkscope/autosave.ini");});
 
     tableModel=new QStandardItemModel(this);//创建并初始化表格
     initTable();
@@ -65,11 +65,52 @@ MainWindow::MainWindow(QWidget *parent)
     gdb->setTempSymbolFileName("tmp");//设定临时符号文件名
     gdb->start();//启动gdb进程
 
+    // Cortex Watch 同步UI
+    QHBoxLayout *syncLayout = new QHBoxLayout();
+    cbSyncWatch = new QCheckBox("同步 Cortex Watch");
+    cbSyncWatch->setChecked(false);
+    leProjectDir = new QLineEdit();
+    leProjectDir->setPlaceholderText("项目目录（含.vscode）");
+    btnBrowse = new QPushButton("浏览...");
+    syncLayout->addWidget(cbSyncWatch);
+    syncLayout->addWidget(leProjectDir);
+    syncLayout->addWidget(btnBrowse);
+    connect(cbSyncWatch, SIGNAL(toggled(bool)), this, SLOT(on_cb_sync_watch_toggled(bool)));
+    connect(btnBrowse, SIGNAL(clicked()), this, SLOT(on_bt_browse_project_clicked()));
+
+    syncTimer = new QTimer(this);
+    syncTimer->setInterval(2000);
+    syncTimer->stop();
+    connect(syncTimer, SIGNAL(timeout()), this, SLOT(slotSyncTimer()));
+
+    // 把同步UI插入到主布局中（在gridLayout下方）
+    QWidget *syncWidget = new QWidget(this);
+    syncWidget->setLayout(syncLayout);
+    syncWidget->setObjectName("syncWidget");
+    // 找到verticalLayout_2并插入syncWidget到gridLayout后面
+    QVBoxLayout *mainLayout = findChild<QVBoxLayout*>("verticalLayout_2");
+    if (mainLayout) {
+        int idx = mainLayout->indexOf(findChild<QWidget*>("tb_var")) + 1;
+        mainLayout->insertWidget(idx, syncWidget);
+    }
+
+    // 高速采样模式复选框
+    cbFastMode = new QCheckBox("高速采样模式（绕过GDB变量查找）");
+    cbFastMode->setChecked(false);
+    connect(cbFastMode, SIGNAL(toggled(bool)), this, SLOT(on_cb_fast_mode_toggled(bool)));
+    if (mainLayout) {
+        int idx = mainLayout->indexOf(findChild<QWidget*>("tb_var")) + 1;
+        mainLayout->insertWidget(idx + 1, cbFastMode);
+    }
+
+    QDir().mkpath(QDir::homePath()+"/.linkscope");//确保配置目录存在
+
     loadConfFileList();//从openocd文件夹中读取配置文件列表
     loadGlobalConf();//加载软件全局配置
-    loadFromFile("autosave.ini");//加载自动保存的工程配置
+    loadFromFile(QDir::homePath()+"/.linkscope/autosave.ini");//加载自动保存的工程配置
 
-    watchTimer->setInterval(1000/configWindowParam.sampleFreq);
+    if (!fastMode)
+        watchTimer->setInterval(1000/configWindowParam.sampleFreq);
 
     QTimer::singleShot(100,this,&MainWindow::checkOpenocdProcess);//窗口加载完成后检查是否有正在运行的openocd进程
 }
@@ -178,16 +219,133 @@ void MainWindow::slotWatchTimerTrig()
         return;
     isWatchProcessing=true;
 
-    qint64 timestamp=stampTimer->nsecsElapsed()/1000;//获取时间戳
-    QString rawDisplay=gdb->runCmd("display\r\n");//获取gdb查看得到的原始值
-    for(int index=0;index<varList.size();index++)//依次进行每个变量的匹配
-    {
-        varList[index].rawValue=gdb->captureValueFromDisplay(rawDisplay,varList.at(index).name);//进行正则匹配，截取出变量值部分
-        SamplePoint sample;
-        if(gdb->getDoubleFromDisplayValue(varList[index].rawValue,sample.value))//尝试转换为double，生成采样点并写入采样点列表
+    qint64 timestamp=stampTimer->nsecsElapsed()/1000;//获取时间戳（微秒）
+
+    // 每500帧算一次实际采样率，输出到日志窗口
+    static int frameCount = 0;
+    static qint64 lastLogTime = 0;
+    frameCount++;
+    if (frameCount >= 500) {
+        qint64 elapsed = timestamp - lastLogTime;
+        double fps = (elapsed > 0) ? (frameCount * 1e6 / elapsed) : 0;
+        logWindow->addLog('I', "Perf",
+            QString("采样率: %1 Hz").arg(fps, 0, 'f', 1),
+            timestamp, "slotWatchTimerTrig");
+        frameCount = 0;
+        lastLogTime = timestamp;
+    }
+
+    if (fastMode) {
+        // 批量读：一次 x/Nwx 读整块内存，本地拆值
+        uint32_t minAddr = 0xFFFFFFFF, maxEnd = 0;
+        for (int i = 0; i < varList.size(); i++) {
+            if (varList[i].address) {
+                if (varList[i].address < minAddr) minAddr = varList[i].address;
+                uint32_t end = varList[i].address + varList[i].size;
+                if (end > maxEnd) maxEnd = end;
+            }
+        }
+        if (minAddr <= maxEnd) {
+            int nWords = ((maxEnd - minAddr + 3) / 4);
+            if (nWords < 1) nWords = 1;
+            uint32_t alignedAddr = minAddr & ~3u;
+            nWords = ((maxEnd - alignedAddr + 3) / 4);
+
+            QString resp = gdb->runCmd(
+                QString("x/%1wx 0x%2\r\n").arg(nWords)
+                .arg(alignedAddr, 8, 16, QChar('0')));
+
+            // 解析 x/Nwx 输出：逐行 "0xADDR: 0xVVVV 0xVVVV..."
+            if (batchDebugOnce) {
+                logWindow->addLog('I', "FastMode",
+                    QString("resp(%1)=%2").arg(resp.length()).arg(resp.left(250)),
+                    timestamp, "slotWatchTimerTrig");
+            }
+            QVector<uint32_t> words;
+            QStringList lines = resp.split(QRegExp("[\\r\\n]+"));
+            foreach (const QString &line, lines) {
+                int colon = line.indexOf(':');
+                if (colon < 0) continue;
+                QString right = line.mid(colon + 1);
+                QRegExp wordRx("0x([0-9a-fA-F]+)");
+                int wp = 0;
+                while ((wp = wordRx.indexIn(right, wp)) != -1) {
+                    bool ok;
+                    words.append(wordRx.cap(1).toUInt(&ok, 16));
+                    wp += wordRx.matchedLength();
+                }
+            }
+
+            if (batchDebugOnce) {
+                logWindow->addLog('I', "FastMode",
+                    QString("批量读: x/%1wx 0x%2 %3 words %4 vars debugOnce=%5")
+                    .arg(nWords).arg(alignedAddr, 8, 16, QChar('0'))
+                    .arg(words.size()).arg(varList.size()).arg(batchDebugOnce),
+                    timestamp, "slotWatchTimerTrig");
+            }
+            // 按偏移拆值
+            for (int i = 0; i < varList.size(); i++) {
+                if (varList[i].address < alignedAddr) continue;
+                int byteOff = (int)(varList[i].address - alignedAddr);
+                int wordIdx = byteOff / 4;
+                int byteInWord = byteOff % 4;
+                if (wordIdx >= words.size()) continue;
+
+                uint32_t raw = 0;
+                if (byteInWord + varList[i].size <= 4 && wordIdx < words.size()) {
+                    // 值在同一 word 内
+                    uint64_t mask = (varList[i].size >= 4) ? 0xFFFFFFFFu
+                                   : ((1u << (varList[i].size * 8)) - 1);
+                    raw = (words[wordIdx] >> (byteInWord * 8)) & (uint32_t)mask;
+                } else {
+                    // 跨 word 边界
+                    int remain = varList[i].size;
+                    int shift = 0;
+                    int wi = wordIdx;
+                    int bo = byteInWord;
+                    while (remain > 0 && wi < words.size()) {
+                        int chunk = qMin(remain, 4 - bo);
+                        uint64_t mask = (chunk >= 4) ? 0xFFFFFFFFu
+                                        : ((1u << (chunk * 8)) - 1);
+                        raw |= ((words[wi] >> (bo * 8)) & (uint32_t)mask) << shift;
+                        shift += chunk * 8;
+                        remain -= chunk;
+                        wi++;
+                        bo = 0;
+                    }
+                }
+                // 转成字符串值
+                QString str = valueToString(raw, varList[i]);
+                varList[i].rawValue = str;
+                if (frameCount % 500 == 0 && varList[i].name == "mdelay_time") {
+                    logWindow->addLog('I', "FastMode",
+                        QString("DBG %1 off=%2 wi=%3 raw=0x%4 w[0]=0x%5 w[wi]=0x%6 str=|%7|")
+                        .arg(varList[i].name).arg(byteOff).arg(wordIdx)
+                        .arg(raw, 0, 16)
+                        .arg(words.size() > 0 ? words[0] : 0, 0, 16)
+                        .arg(wordIdx < words.size() ? words[wordIdx] : 0, 0, 16)
+                        .arg(str),
+                        timestamp, "slotWatchTimerTrig");
+                }
+                SamplePoint sample;
+                if (gdb->getDoubleFromDisplayValue(varList[i].rawValue, sample.value)) {
+                    sample.timestamp = timestamp;
+                    varList[i].samples.append(sample);
+                }
+            }
+            batchDebugOnce = false;
+        }
+    } else {
+        QString rawDisplay=gdb->runCmd("display\r\n");//获取gdb查看得到的原始值
+        for(int index=0;index<varList.size();index++)//依次进行每个变量的匹配
         {
-            sample.timestamp=timestamp;
-            varList[index].samples.append(sample);
+            varList[index].rawValue=gdb->captureValueFromDisplay(rawDisplay,varList.at(index).name);//进行正则匹配，截取出变量值部分
+            SamplePoint sample;
+            if(gdb->getDoubleFromDisplayValue(varList[index].rawValue,sample.value))//尝试转换为double，生成采样点并写入采样点列表
+            {
+                sample.timestamp=timestamp;
+                varList[index].samples.append(sample);
+            }
         }
     }
 
@@ -343,6 +501,21 @@ void MainWindow::setConnState(bool connect)
             ui->rb_serialocd->setEnabled(false);
 
             connected=true;//更新连接标志
+            if (cbSyncWatch->isChecked() && !workspaceDbPath.isEmpty()) {
+                syncWatchVars();
+                syncTimer->start();
+            }
+            if (fastMode) {
+                qint64 ts = stampTimer->nsecsElapsed() / 1000;
+                logWindow->addLog('I', "FastMode",
+                    QString("高速模式已启用，varList有%1个变量，开始解析地址").arg(varList.size()),
+                    ts, "slotConnect");
+                resolveVarAddresses();
+                updateGDBList();
+                logWindow->addLog('I', "FastMode",
+                    QString("地址解析完成，共%1个变量").arg(varList.size()),
+                    ts, "slotConnect");
+            }
         }
         ui->bt_conn->setEnabled(true);//恢复连接按钮
     }
@@ -362,7 +535,11 @@ void MainWindow::setConnState(bool connect)
         ui->bt_reset->setEnabled(false);//禁用复位按钮
         ui->rb_openocd->setEnabled(true);//使能连接方式选择
         ui->rb_serialocd->setEnabled(true);
+        syncTimer->stop();
         connected=false;//更新连接标志
+        batchDebugOnce = true;  // 重连后重新输出调试信息
+        // 重置 batch read debug flag（用 volatile trick 强制下次首帧输出）
+        slotWatchTimerTrig(); // no-op trigger will be called anyway
     }
 }
 
@@ -477,6 +654,10 @@ void MainWindow::saveToFile(const QString &filename)
     settings.setValue("AxfChosen",axfChosen);
     settings.setValue("AxfPath",ui->txt_axf_path->text());
     settings.setValue("LogEnabled",ui->cb_log->isChecked());
+    settings.setValue("ExtOpenocd",ui->cb_ext_openocd->isChecked());
+    settings.setValue("SyncWatch",cbSyncWatch->isChecked());
+    settings.setValue("ProjectDir",leProjectDir->text());
+    settings.setValue("FastMode",cbFastMode->isChecked());
     settings.setValue("VarNum",varList.size());
     settings.endGroup();
     settings.beginGroup("ConfigWindow");//写入配置窗口数据
@@ -517,7 +698,13 @@ void MainWindow::loadFromFile(const QString &filename)
     axfChosen=settings.value("AxfChosen",true).toBool();
     ui->txt_axf_path->setText(settings.value("AxfPath").toString());
     ui->cb_log->setChecked(settings.value("LogEnabled",false).toBool());
-    int varNum=settings.value("VarNum").toInt();    
+    ui->cb_ext_openocd->setChecked(settings.value("ExtOpenocd",false).toBool());
+    cbSyncWatch->setChecked(settings.value("SyncWatch",false).toBool());
+    leProjectDir->setText(settings.value("ProjectDir").toString());
+    cbFastMode->setChecked(settings.value("FastMode",true).toBool());
+    if (cbSyncWatch->isChecked() && !leProjectDir->text().isEmpty())
+        workspaceDbPath = findWorkspaceDb(leProjectDir->text());
+    int varNum=settings.value("VarNum").toInt();
     settings.endGroup();
     settings.beginGroup("ConfigWindow");//读取配置窗口数据
     configWindowParam.baudrate=settings.value("BaudRate",115200).toInt();
@@ -842,6 +1029,7 @@ void MainWindow::checkUpdate()
 //检查后台是否存在openocd进程，存在的话询问用户是否关闭
 void MainWindow::checkOpenocdProcess()
 {
+#ifdef Q_OS_WIN32
     QProcess listProcess(0);//使用tasklist查找openocd进程
     listProcess.setProgram("tasklist");
     listProcess.setNativeArguments("/fi \"imagename eq openocd.exe\"");
@@ -862,6 +1050,9 @@ void MainWindow::checkOpenocdProcess()
             killProcess.waitForFinished();
         }
     }
+#else
+    Q_UNUSED(this);
+#endif
 }
 
 //检查更新菜单点击
@@ -916,8 +1107,9 @@ void MainWindow::on_action_config_triggered()
     if(configWindow.exec()==QDialog::Accepted)
     {
         configWindow.getParam(configWindowParam);
+        if (!fastMode)
         watchTimer->setInterval(1000/configWindowParam.sampleFreq);
-        saveToFile("autosave.ini");
+        saveToFile(QDir::homePath()+"/.linkscope/autosave.ini");
     }
 }
 
@@ -929,4 +1121,268 @@ void MainWindow::on_action_del_all_triggered()
 
     if(connected)//若正在连接状态则向gdb发送新的变量列表
         updateGDBList();
+}
+
+// 扫描所有VSCode workspaceStorage，找到匹配项目目录的state.vscdb路径
+QString MainWindow::findWorkspaceDb(const QString &projectDir)
+{
+    QString wsRoot = QDir::homePath() + "/Library/Application Support/Code/User/workspaceStorage";
+    QDir wsDir(wsRoot);
+    if (!wsDir.exists()) return "";
+
+    QString folderUri = "file://" + projectDir;
+    QFileInfoList subDirs = wsDir.entryInfoList(QDir::Dirs | QDir::NoDotAndDotDot);
+    foreach (QFileInfo info, subDirs) {
+        QFile wsJson(info.absoluteFilePath() + "/workspace.json");
+        if (wsJson.open(QIODevice::ReadOnly)) {
+            QJsonDocument doc = QJsonDocument::fromJson(wsJson.readAll());
+            wsJson.close();
+            if (doc.object().value("folder").toString() == folderUri) {
+                return info.absoluteFilePath() + "/state.vscdb";
+            }
+        }
+    }
+    return "";
+}
+
+// 递归提取watchTree中的变量名。struct/class 自动展开为其成员（用 expr 字段获取 p.x 等全名）
+void MainWindow::extractVarNamesFromNode(const QJsonObject &node, QStringList &varList)
+{
+    QJsonArray children = node.value("children").toArray();
+    if (!children.isEmpty()) {
+        // 有子节点 → struct/class，不添加自身，递归展开成员
+        for (int i = 0; i < children.size(); i++)
+            extractVarNamesFromNode(children[i].toObject(), varList);
+    } else {
+        // 叶子节点 → 普通变量，取 expr（如 p.x、mdelay_time）
+        QString expr = node.value("expr").toString();
+        if (!expr.isEmpty())
+            varList.append(expr);
+    }
+}
+
+// 从VSCode state.vscdb读取Cortex-Debug watch变量并同步
+void MainWindow::syncWatchVars()
+{
+    if (workspaceDbPath.isEmpty() || !cbSyncWatch->isChecked() || !connected)
+        return;
+
+    QProcess sqlite;
+    sqlite.setProgram("sqlite3");
+    sqlite.setArguments({workspaceDbPath,
+        "SELECT value FROM ItemTable WHERE key='marus25.cortex-debug';"});
+    sqlite.start();
+    if (!sqlite.waitForFinished(3000))
+        return;
+
+    QByteArray output = sqlite.readAllStandardOutput();
+    if (output.isEmpty()) return;
+
+    QJsonDocument doc = QJsonDocument::fromJson(output);
+    QJsonObject watchTree = doc.object().value("livewatch.watchTree").toObject();
+
+    QStringList watchVars;
+    extractVarNamesFromNode(watchTree, watchVars);
+
+    // 自动展开 struct → p.x, p.y, p.color.r, p.color.g（支持多级嵌套）
+    QStringList expandedVars;
+    QStringList pending = watchVars;
+    while (!pending.isEmpty()) {
+        QString varName = pending.takeFirst();
+        QString ptype = gdb->runCmd("ptype " + varName + "\r\n");
+        if (ptype.contains("struct") && ptype.contains("{")) {
+            // 是 struct → 解析字段名，加入待展开队列
+            QRegExp fieldRx("\\n\\s+(?:const\\s+)?(?:volatile\\s+)?\\w+(?:\\s+\\w+)*\\s+(\\w+)(?:\\[\\d+\\])?;");
+            int pos = 0;
+            while ((pos = fieldRx.indexIn(ptype, pos)) != -1) {
+                pending.append(varName + "." + fieldRx.cap(1));
+                pos += fieldRx.matchedLength();
+            }
+        } else {
+            // 叶子节点 → 加入结果列表
+            expandedVars.append(varName);
+        }
+    }
+
+    // 对比已有列表，加入新变量
+    bool changed = false;
+    foreach (QString varName, expandedVars) {
+        bool found = false;
+        for (int i = 0; i < varList.size(); i++) {
+            if (varList[i].name == varName) { found = true; break; }
+        }
+        if (!found) {
+            VarInfo info;
+            info.name = varName;
+            info.enableScope = true;
+            static const QColor palette[] = {
+                QColor("#E53935"), QColor("#43A047"), QColor("#1E88E5"),
+                QColor("#FB8C00"), QColor("#8E24AA"), QColor("#00ACC1"),
+                QColor("#F4511E"), QColor("#3949AB"), QColor("#00897B"),
+                QColor("#6D4C41"), QColor("#C0CA33"), QColor("#5C6BC0"),
+            };
+            info.lineColor = palette[varList.size() % 12];
+            varList.append(info);
+            changed = true;
+        }
+    }
+    // 移除不在watch中的变量
+    for (int i = varList.size() - 1; i >= 0; i--) {
+        if (!expandedVars.contains(varList[i].name)) {
+            varList.removeAt(i);
+            changed = true;
+        }
+    }
+    if (changed) {
+        redrawTable();
+        updateGDBList();
+    }
+}
+
+void MainWindow::on_cb_sync_watch_toggled(bool checked)
+{
+    leProjectDir->setEnabled(checked);
+    btnBrowse->setEnabled(checked);
+    if (checked) {
+        // 尝试自动找workspace
+        if (!leProjectDir->text().isEmpty()) {
+            workspaceDbPath = findWorkspaceDb(leProjectDir->text());
+            if (workspaceDbPath.isEmpty()) {
+                qDebug() << "Cortex sync: no workspace found for" << leProjectDir->text();
+            }
+        }
+        if (connected) syncTimer->start();
+    } else {
+        syncTimer->stop();
+    }
+}
+
+void MainWindow::on_bt_browse_project_clicked()
+{
+    QString dir = QFileDialog::getExistingDirectory(this, "选择项目目录（含.vscode）",
+        leProjectDir->text().isEmpty() ? QDir::homePath() : leProjectDir->text());
+    if (!dir.isEmpty()) {
+        leProjectDir->setText(dir);
+        workspaceDbPath = findWorkspaceDb(dir);
+        if (workspaceDbPath.isEmpty())
+            qDebug() << "Cortex sync: no VSCode workspace found for" << dir;
+        if (cbSyncWatch->isChecked() && connected)
+            syncTimer->start();
+    }
+}
+
+void MainWindow::slotSyncTimer()
+{
+    syncWatchVars();
+}
+
+// 用GDB print &var 解析所有变量地址，供高速模式使用
+void MainWindow::resolveVarAddresses()
+{
+    QString elfPath = ui->txt_axf_path->text();
+    qint64 ts = stampTimer->nsecsElapsed() / 1000;
+
+    // 一次性读取 nm -S 输出（含符号大小）
+    QProcess nm;
+    nm.setProgram("arm-none-eabi-nm");
+    nm.setArguments({"-S", elfPath});
+    nm.start();
+    nm.waitForFinished(5000);
+    QString nmOutput = nm.readAllStandardOutput();
+
+    for (int i = 0; i < varList.size(); i++) {
+        // ---- 解析 nm -S 输出获取地址和大小 ----
+        // nm -S 格式: "20000014 00000004 b u32_val"
+        QRegExp nmRx(QString("^([0-9a-fA-F]+)\\s+([0-9a-fA-F]+)\\s+\\w\\s+%1$")
+                        .arg(QRegExp::escape(varList[i].name)));
+        nmRx.setMinimal(true);
+        QTextStream ts_nm(&nmOutput);
+        while (!ts_nm.atEnd()) {
+            QString line = ts_nm.readLine();
+            if (nmRx.indexIn(line) != -1) {
+                bool ok;
+                varList[i].address = nmRx.cap(1).toUInt(&ok, 16);
+                varList[i].size    = nmRx.cap(2).toUInt(&ok, 16);
+                if (varList[i].size == 0 || varList[i].size > 8)
+                    varList[i].size = 4;
+                break;
+            }
+        }
+
+        // ---- nm 找不到（struct 成员如 p.x），用 GDB 兜底 ----
+        if (varList[i].address == 0) {
+            QString resp = gdb->runCmd("print &" + varList[i].name + "\r\n");
+            QRegExp gdbAddr("0x([0-9a-fA-F]+)");
+            if (gdbAddr.indexIn(resp) != -1) {
+                bool ok;
+                varList[i].address = gdbAddr.cap(1).toUInt(&ok, 16);
+            }
+            // GDB print sizeof 获取精确大小
+            QString sizeResp = gdb->runCmd(
+                QString("print sizeof(%1)\r\n").arg(varList[i].name));
+            QRegExp sizeRx("=\\s*(\\d+)");
+            if (sizeRx.indexIn(sizeResp) != -1) {
+                varList[i].size = (uint8_t)sizeRx.cap(1).toUInt();
+            }
+            // 检测类型：nm 输出的符号表中也能看到类型字母（D=数据, b=BSS等）
+            // 这里靠 GDB 查找类型字符串
+        }
+
+        // ---- 检测 signed/float 属性（用 GDB ptype 获取精确类型）----
+        if (varList[i].address) {
+            QString ptype = gdb->runCmd("whatis " + varList[i].name + "\r\n");
+            QString tl = ptype.toLower();
+            if (tl.contains("float") || tl.contains("double"))
+                varList[i].isFloat = true;
+            else if (tl.contains("int") && !tl.contains("uint"))
+                varList[i].isSigned = true;
+            logWindow->addLog('I', "FastMode",
+                QString("  type %1 → %2 float=%3 signed=%4")
+                .arg(varList[i].name).arg(tl.trimmed().left(80))
+                .arg(varList[i].isFloat).arg(varList[i].isSigned),
+                ts, "resolveVarAddresses");
+        }
+
+        // ---- 日志 ----
+        if (varList[i].address) {
+            logWindow->addLog('I', "FastMode",
+                QString("解析 %1 → 0x%2 (%3B)").arg(varList[i].name)
+                .arg(varList[i].address, 8, 16, QChar('0')).arg(varList[i].size),
+                ts, "resolveVarAddresses");
+        } else {
+            logWindow->addLog('W', "FastMode",
+                QString("无法解析 %1").arg(varList[i].name), ts, "resolveVarAddresses");
+        }
+    }
+}
+
+// 解析 monitor mdw 的返回值，如 "0x20000004: 00000003 " → "3"
+QString MainWindow::valueToString(uint32_t raw, const VarInfo &var)
+{
+    if (var.isFloat) {
+        float f;
+        memcpy(&f, &raw, 4);
+        return QString::number(f, 'f', 2);
+    }
+    if (var.isSigned) {
+        if (var.size == 1)      return QString::number((int8_t)raw);
+        else if (var.size == 2) return QString::number((int16_t)raw);
+        else                    return QString::number((int32_t)raw);
+    }
+    return QString::number(raw);
+}
+
+void MainWindow::on_cb_fast_mode_toggled(bool checked)
+{
+    fastMode = checked;
+    if (fastMode) {
+        watchTimer->setInterval(0);  // 以最快速度触发，不限Hz
+        if (connected) {
+            resolveVarAddresses();
+            if (cbSyncWatch->isChecked())
+                syncWatchVars();
+        }
+    } else {
+        watchTimer->setInterval(1000 / configWindowParam.sampleFreq);
+    }
 }

@@ -64,7 +64,7 @@ void ListWindow::parseVarChildren(VarNode &node)
         rawVarInfo=gdb->runCmd("info variables\r\n");//使用info variables指令列出axf中所有变量
         gdb->removeInnerSection(rawVarInfo,0);//移除内部直接嵌套的部分
 
-        QRegExp fileRx("\\nFile\\s(.*):\\r\\n");//正则匹配获取所有文件名并添加为节点
+        QRegExp fileRx("\\nFile\\s(.*):\\r?\\n");//正则匹配获取所有文件名并添加为节点
         fileRx.setMinimal(true);
         int pos=0;
         QStringList fileNameList;//存放已解析的文件名，用于去重
@@ -90,10 +90,10 @@ void ListWindow::parseVarChildren(VarNode &node)
 
         while(true)//循环查找每一个匹配的文件名
         {
-            startPos=QRegExp(QString("\\nFile\\s%1:\\r\\n").arg(regName)).indexIn(rawVarInfo,endPos);//找到文件名所在位置
+            startPos=QRegExp(QString("\\nFile\\s%1:\\r?\\n").arg(regName)).indexIn(rawVarInfo,endPos);//找到文件名所在位置
             if(startPos==-1)
                 break;
-            endPos=QRegExp("\\nFile\\s(.*):\\r\\n").indexIn(rawVarInfo,startPos+1);//找到下一个文件名所在位置
+            endPos=QRegExp("\\nFile\\s(.*):\\r?\\n").indexIn(rawVarInfo,startPos+1);//找到下一个文件名所在位置
             if(endPos==-1)
                 endPos=rawVarInfo.length()-1;
 
@@ -110,7 +110,7 @@ void ListWindow::parseVarChildren(VarNode &node)
         QString fullName=getVarFullName(node);//计算节点全名
         QString rawVarType=gdb->runCmd(QString("whatis %1\r\n").arg(fullName));//使用whatis指令获取类型
         rawVarType.remove("type = ");
-        rawVarType.remove("\r\n(gdb) ");
+        rawVarType.remove(QRegExp("\\r?\\n\\(gdb\\) "));
         if(rawVarType.contains("["))//判定是否为数组类型
         {
             QRegExp rx("\\[(\\d+)\\]");//使用正则表达式提取出第一维长度len
@@ -130,7 +130,7 @@ void ListWindow::parseVarChildren(VarNode &node)
         {
             QString detailRawVarType=gdb->runCmd(QString("ptype %1\r\n").arg(fullName));//用ptype指令获取详细类型
             detailRawVarType.remove("type = ");
-            detailRawVarType.remove("\r\n(gdb) ");
+            detailRawVarType.remove(QRegExp("\\r?\\n\\(gdb\\) "));
             if(detailRawVarType.startsWith("struct")||detailRawVarType.startsWith("union")||detailRawVarType.startsWith("class"))//判定为可展开类型
             {
                 gdb->removeInnerSection(detailRawVarType,detailRawVarType.indexOf('{')+1);//移除内部直接嵌套的部分

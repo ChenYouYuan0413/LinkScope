@@ -20,11 +20,17 @@ OpenOCD::~OpenOCD()
 //启动OCD进程并设定调试器类型、芯片类型、gdb端口号
 void OpenOCD::start(const QString &chosenInterface,const QString &chosenTarget,const QString &extraParam,int gdbPort)
 {
+    QString args = QString("-f interface/%1 -f target/%2 -c \"gdb_port %3\" -c \"tcl_port disabled;telnet_port disabled;%4\"")
+            .arg(chosenInterface).arg(chosenTarget).arg(gdbPort).arg(extraParam);
+#ifdef Q_OS_WIN32
     process->setWorkingDirectory(QCoreApplication::applicationDirPath()+"/openocd/bin");//设置工作路径
     process->setProgram(QCoreApplication::applicationDirPath()+"/openocd/bin/openocd.exe");//设置程序路径
-    process->setNativeArguments(
-                QString("-f interface/%1 -f target/%2 -c \"gdb_port %3\" -c \"tcl_port disabled;telnet_port disabled;%4\"")
-                .arg(chosenInterface).arg(chosenTarget).arg(gdbPort).arg(extraParam));//设置参数为所选的调试器、目标芯片和gdb端口
+    process->setNativeArguments(args);
+#else
+    process->setProgram("openocd");
+    process->setArguments(args.split(" "));
+    process->setWorkingDirectory(QCoreApplication::applicationDirPath()+"/../stm32/STM32F407");
+#endif
     process->start();
 }
 
@@ -33,11 +39,16 @@ void OpenOCD::stop()
 {
     if(process->state()==QProcess::NotRunning)
         return;
+#ifdef Q_OS_WIN32
     QProcess killProcess(0);//创建新进程，用taskkill强行结束ocd进程
     killProcess.setProgram("taskkill");
     killProcess.setNativeArguments(QString("/F /PID %1").arg(process->pid()->dwProcessId));
     killProcess.start();
     killProcess.waitForFinished();
+#else
+    process->terminate();
+    process->waitForFinished(3000);
+#endif
 }
 
 //返回当前OCD进程是否正在运行

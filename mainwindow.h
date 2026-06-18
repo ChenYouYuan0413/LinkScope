@@ -8,7 +8,9 @@
 #include <QTime>
 #include <QDir>
 #include <qfiledialog.h>
+#ifdef Q_OS_WIN32
 #include <windows.h>
+#endif
 #include <qmessagebox.h>
 #include <qstandarditemmodel.h>
 #include <qtimer.h>
@@ -29,6 +31,13 @@
 #include <serialocd.h>
 #include <logwindow.h>
 #include <configwindow.h>
+#include <QCheckBox>
+#include <QLineEdit>
+#include <QPushButton>
+#include <QHBoxLayout>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QJsonArray>
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
@@ -75,6 +84,10 @@ private slots:
     void on_cb_ext_openocd_toggled(bool checked);
     void on_action_config_triggered();
     void on_action_del_all_triggered();
+    void on_cb_sync_watch_toggled(bool checked);
+    void on_bt_browse_project_clicked();
+    void slotSyncTimer();
+    void on_cb_fast_mode_toggled(bool checked);
 
 private:
     Ui::MainWindow *ui;
@@ -85,7 +98,14 @@ private:
     bool connected=false;//标记当前是否已连接
     QStandardItemModel *tableModel;//表格数据
     QList<VarInfo> varList;//变量列表
-    QTimer *watchTimer,*tableTimer,*logTimer,*autosaveTimer;//定时器，用于查看变量值、刷新表格、监视日志和定时保存
+    QTimer *watchTimer,*tableTimer,*logTimer,*autosaveTimer,*syncTimer;//定时器，用于查看变量值、刷新表格、监视日志、定时保存、Cortex同步
+    QCheckBox *cbSyncWatch;
+    QLineEdit *leProjectDir;
+    QPushButton *btnBrowse;
+    QString workspaceDbPath;//当前项目的workspace state.vscdb路径
+    QCheckBox *cbFastMode;
+    bool fastMode = false;
+    bool batchDebugOnce = true;
     QElapsedTimer *stampTimer;//时间戳定时器指针
     GraphWindow *graph;//绘图窗口指针
     bool isWatchProcessing=false;//标记当前是否正在处理变量值查看
@@ -108,5 +128,10 @@ private:
     bool exportCSV(const QString &filename);
     void loadGlobalConf();
     void saveGlobalConf();
+    QString findWorkspaceDb(const QString &projectDir);
+    void syncWatchVars();
+    void extractVarNamesFromNode(const QJsonObject &node, QStringList &varList);
+    void resolveVarAddresses();
+    QString valueToString(uint32_t raw, const VarInfo &var);
 };
 #endif // MAINWINDOW_H
