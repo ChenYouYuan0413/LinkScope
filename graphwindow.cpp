@@ -2,7 +2,7 @@
 #include "ui_graphwindow.h"
 
 GraphWindow::GraphWindow(QWidget *parent) :
-    QDialog(parent),
+    QWidget(parent),
     ui(new Ui::GraphWindow)
 {
     ui->setupUi(this);
@@ -151,7 +151,7 @@ bool GraphWindow::eventFilter(QObject *watched, QEvent *event)
         paintGraph(ui->txt_graph);
         return true;
     }
-    return QDialog::eventFilter(watched,event);
+    return QWidget::eventFilter(watched,event);
 }
 
 //滚轮事件

@@ -1,7 +1,7 @@
 #ifndef LOGWINDOW_H
 #define LOGWINDOW_H
 
-#include <QDialog>
+#include <QWidget>
 #include <qstandarditemmodel.h>
 #include <qscrollbar.h>
 #include <QTime>
@@ -14,7 +14,7 @@ namespace Ui {
 class LogWindow;
 }
 
-class LogWindow : public QDialog
+class LogWindow : public QWidget
 {
     Q_OBJECT
 

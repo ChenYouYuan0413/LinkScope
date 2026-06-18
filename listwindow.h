@@ -1,7 +1,7 @@
 #ifndef LISTWINDOW_H
 #define LISTWINDOW_H
 
-#include <QDialog>
+#include <QWidget>
 #include <qprocess.h>
 #include <qfile.h>
 #include <QTime>
@@ -40,7 +40,7 @@ public:
     }
 };
 
-class ListWindow : public QDialog
+class ListWindow : public QWidget
 {
     Q_OBJECT
 

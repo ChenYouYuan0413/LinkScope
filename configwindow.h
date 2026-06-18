@@ -17,6 +17,18 @@ struct ConfigWindowParam {
     int gdbPort;
     QString gdbParam;
     QString ocdParam;
+    // 从主窗口移入的设置
+    QString interface;
+    QString target;
+    bool extOpenocd = false;
+    bool syncWatch  = false;
+    QString projectDir;
+    bool fastMode   = false;
+    bool openocdMode = true;  // true=OpenOCD, false=串口
+    QString axfPath;
+    // 下拉列表项（setParam前填充）
+    QStringList interfaceList;
+    QStringList targetList;
 };
 
 class ConfigWindow : public QDialog

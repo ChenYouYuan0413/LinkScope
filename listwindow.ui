@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
  <class>ListWindow</class>
- <widget class="QDialog" name="ListWindow">
+ <widget class="QWidget" name="ListWindow">
   <property name="geometry">
    <rect>
     <x>0</x>

@@ -2,7 +2,7 @@
 #include "ui_listwindow.h"
 
 ListWindow::ListWindow(QWidget *parent) :
-    QDialog(parent),
+    QWidget(parent),
     ui(new Ui::ListWindow)
 {
     ui->setupUi(this);

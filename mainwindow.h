@@ -35,6 +35,7 @@
 #include <QLineEdit>
 #include <QPushButton>
 #include <QHBoxLayout>
+#include <QDockWidget>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QJsonArray>
@@ -88,6 +89,7 @@ private slots:
     void on_bt_browse_project_clicked();
     void slotSyncTimer();
     void on_cb_fast_mode_toggled(bool checked);
+    void on_bt_pause_clicked();
 
 private:
     Ui::MainWindow *ui;
@@ -112,6 +114,9 @@ private:
     bool axfChosen=false;//是否已经选择了axf文件
     ListWindow *listWindow;//选择窗口指针
     LogWindow *logWindow;//日志窗口指针
+    QDockWidget *graphDock, *listDock, *logDock;
+    QPushButton *bt_pause;
+    bool paused = false;
     QMenu *tablePopMenu;//右键点击表格时弹出的菜单
     ConfigWindowParam configWindowParam;//配置窗口数据
     void checkUpdate();

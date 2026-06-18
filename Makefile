@@ -879,11 +879,9 @@ moc_gdbprocess.cpp: gdbprocess.h \
 	/opt/homebrew/Cellar/qt@5/5.15.19/bin/moc $(DEFINES) --include /Users/chenyouyuan/cyy_ws/LinkScope/moc_predefs.h -I/opt/homebrew/Cellar/qt@5/5.15.19/mkspecs/macx-clang -I/Users/chenyouyuan/cyy_ws/LinkScope -I/opt/homebrew/Cellar/qt@5/5.15.19/lib/QtWidgets.framework/Headers -I/opt/homebrew/Cellar/qt@5/5.15.19/lib/QtGui.framework/Headers -I/opt/homebrew/Cellar/qt@5/5.15.19/lib/QtNetwork.framework/Headers -I/opt/homebrew/Cellar/qt@5/5.15.19/lib/QtSerialPort.framework/Headers -I/opt/homebrew/Cellar/qt@5/5.15.19/lib/QtCore.framework/Headers -I/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1 -I/Library/Developer/CommandLineTools/usr/lib/clang/17/include -I/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include -I/Library/Developer/CommandLineTools/usr/include -F/opt/homebrew/Cellar/qt@5/5.15.19/lib gdbprocess.h -o moc_gdbprocess.cpp
 
 moc_graphwindow.cpp: graphwindow.h \
-		/opt/homebrew/Cellar/qt@5/5.15.19/lib/QtWidgets.framework/Headers/QDialog \
-		/opt/homebrew/Cellar/qt@5/5.15.19/lib/QtWidgets.framework/Headers/qdialog.h \
-		vartype.h \
 		/opt/homebrew/Cellar/qt@5/5.15.19/lib/QtWidgets.framework/Headers/QWidget \
 		/opt/homebrew/Cellar/qt@5/5.15.19/lib/QtWidgets.framework/Headers/qwidget.h \
+		vartype.h \
 		/opt/homebrew/Cellar/qt@5/5.15.19/lib/QtCore.framework/Headers/qtimer.h \
 		/opt/homebrew/Cellar/qt@5/5.15.19/lib/QtGui.framework/Headers/QKeyEvent \
 		/opt/homebrew/Cellar/qt@5/5.15.19/lib/QtGui.framework/Headers/qevent.h \
@@ -903,8 +901,8 @@ moc_helpwindow.cpp: helpwindow.h \
 	/opt/homebrew/Cellar/qt@5/5.15.19/bin/moc $(DEFINES) --include /Users/chenyouyuan/cyy_ws/LinkScope/moc_predefs.h -I/opt/homebrew/Cellar/qt@5/5.15.19/mkspecs/macx-clang -I/Users/chenyouyuan/cyy_ws/LinkScope -I/opt/homebrew/Cellar/qt@5/5.15.19/lib/QtWidgets.framework/Headers -I/opt/homebrew/Cellar/qt@5/5.15.19/lib/QtGui.framework/Headers -I/opt/homebrew/Cellar/qt@5/5.15.19/lib/QtNetwork.framework/Headers -I/opt/homebrew/Cellar/qt@5/5.15.19/lib/QtSerialPort.framework/Headers -I/opt/homebrew/Cellar/qt@5/5.15.19/lib/QtCore.framework/Headers -I/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1 -I/Library/Developer/CommandLineTools/usr/lib/clang/17/include -I/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include -I/Library/Developer/CommandLineTools/usr/include -F/opt/homebrew/Cellar/qt@5/5.15.19/lib helpwindow.h -o moc_helpwindow.cpp
 
 moc_listwindow.cpp: listwindow.h \
-		/opt/homebrew/Cellar/qt@5/5.15.19/lib/QtWidgets.framework/Headers/QDialog \
-		/opt/homebrew/Cellar/qt@5/5.15.19/lib/QtWidgets.framework/Headers/qdialog.h \
+		/opt/homebrew/Cellar/qt@5/5.15.19/lib/QtWidgets.framework/Headers/QWidget \
+		/opt/homebrew/Cellar/qt@5/5.15.19/lib/QtWidgets.framework/Headers/qwidget.h \
 		/opt/homebrew/Cellar/qt@5/5.15.19/lib/QtCore.framework/Headers/qprocess.h \
 		/opt/homebrew/Cellar/qt@5/5.15.19/lib/QtCore.framework/Headers/qfile.h \
 		/opt/homebrew/Cellar/qt@5/5.15.19/lib/QtCore.framework/Headers/QTime \
@@ -924,8 +922,8 @@ moc_listwindow.cpp: listwindow.h \
 	/opt/homebrew/Cellar/qt@5/5.15.19/bin/moc $(DEFINES) --include /Users/chenyouyuan/cyy_ws/LinkScope/moc_predefs.h -I/opt/homebrew/Cellar/qt@5/5.15.19/mkspecs/macx-clang -I/Users/chenyouyuan/cyy_ws/LinkScope -I/opt/homebrew/Cellar/qt@5/5.15.19/lib/QtWidgets.framework/Headers -I/opt/homebrew/Cellar/qt@5/5.15.19/lib/QtGui.framework/Headers -I/opt/homebrew/Cellar/qt@5/5.15.19/lib/QtNetwork.framework/Headers -I/opt/homebrew/Cellar/qt@5/5.15.19/lib/QtSerialPort.framework/Headers -I/opt/homebrew/Cellar/qt@5/5.15.19/lib/QtCore.framework/Headers -I/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1 -I/Library/Developer/CommandLineTools/usr/lib/clang/17/include -I/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include -I/Library/Developer/CommandLineTools/usr/include -F/opt/homebrew/Cellar/qt@5/5.15.19/lib listwindow.h -o moc_listwindow.cpp
 
 moc_logwindow.cpp: logwindow.h \
-		/opt/homebrew/Cellar/qt@5/5.15.19/lib/QtWidgets.framework/Headers/QDialog \
-		/opt/homebrew/Cellar/qt@5/5.15.19/lib/QtWidgets.framework/Headers/qdialog.h \
+		/opt/homebrew/Cellar/qt@5/5.15.19/lib/QtWidgets.framework/Headers/QWidget \
+		/opt/homebrew/Cellar/qt@5/5.15.19/lib/QtWidgets.framework/Headers/qwidget.h \
 		/opt/homebrew/Cellar/qt@5/5.15.19/lib/QtGui.framework/Headers/qstandarditemmodel.h \
 		/opt/homebrew/Cellar/qt@5/5.15.19/lib/QtWidgets.framework/Headers/qscrollbar.h \
 		/opt/homebrew/Cellar/qt@5/5.15.19/lib/QtCore.framework/Headers/QTime \
@@ -957,8 +955,6 @@ moc_mainwindow.cpp: mainwindow.h \
 		/opt/homebrew/Cellar/qt@5/5.15.19/lib/QtGui.framework/Headers/QKeyEvent \
 		/opt/homebrew/Cellar/qt@5/5.15.19/lib/QtGui.framework/Headers/qevent.h \
 		graphwindow.h \
-		/opt/homebrew/Cellar/qt@5/5.15.19/lib/QtWidgets.framework/Headers/QDialog \
-		/opt/homebrew/Cellar/qt@5/5.15.19/lib/QtWidgets.framework/Headers/qdialog.h \
 		/opt/homebrew/Cellar/qt@5/5.15.19/lib/QtGui.framework/Headers/QPainter \
 		/opt/homebrew/Cellar/qt@5/5.15.19/lib/QtGui.framework/Headers/qpainter.h \
 		/opt/homebrew/Cellar/qt@5/5.15.19/lib/QtCore.framework/Headers/qelapsedtimer.h \
@@ -975,6 +971,8 @@ moc_mainwindow.cpp: mainwindow.h \
 		/opt/homebrew/Cellar/qt@5/5.15.19/lib/QtCore.framework/Headers/QProcess \
 		/opt/homebrew/Cellar/qt@5/5.15.19/lib/QtCore.framework/Headers/qcoreapplication.h \
 		helpwindow.h \
+		/opt/homebrew/Cellar/qt@5/5.15.19/lib/QtWidgets.framework/Headers/QDialog \
+		/opt/homebrew/Cellar/qt@5/5.15.19/lib/QtWidgets.framework/Headers/qdialog.h \
 		aboutwindow.h \
 		/opt/homebrew/Cellar/qt@5/5.15.19/lib/QtNetwork.framework/Headers/qnetworkaccessmanager.h \
 		/opt/homebrew/Cellar/qt@5/5.15.19/lib/QtNetwork.framework/Headers/qnetworkreply.h \
@@ -998,6 +996,8 @@ moc_mainwindow.cpp: mainwindow.h \
 		/opt/homebrew/Cellar/qt@5/5.15.19/lib/QtWidgets.framework/Headers/qpushbutton.h \
 		/opt/homebrew/Cellar/qt@5/5.15.19/lib/QtWidgets.framework/Headers/QHBoxLayout \
 		/opt/homebrew/Cellar/qt@5/5.15.19/lib/QtWidgets.framework/Headers/qboxlayout.h \
+		/opt/homebrew/Cellar/qt@5/5.15.19/lib/QtWidgets.framework/Headers/QDockWidget \
+		/opt/homebrew/Cellar/qt@5/5.15.19/lib/QtWidgets.framework/Headers/qdockwidget.h \
 		/opt/homebrew/Cellar/qt@5/5.15.19/lib/QtCore.framework/Headers/QJsonDocument \
 		/opt/homebrew/Cellar/qt@5/5.15.19/lib/QtCore.framework/Headers/qjsondocument.h \
 		/opt/homebrew/Cellar/qt@5/5.15.19/lib/QtCore.framework/Headers/QJsonObject \
@@ -1113,11 +1113,9 @@ gdbprocess.o: gdbprocess.cpp gdbprocess.h \
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o gdbprocess.o gdbprocess.cpp
 
 graphwindow.o: graphwindow.cpp graphwindow.h \
-		/opt/homebrew/Cellar/qt@5/5.15.19/lib/QtWidgets.framework/Headers/QDialog \
-		/opt/homebrew/Cellar/qt@5/5.15.19/lib/QtWidgets.framework/Headers/qdialog.h \
-		vartype.h \
 		/opt/homebrew/Cellar/qt@5/5.15.19/lib/QtWidgets.framework/Headers/QWidget \
 		/opt/homebrew/Cellar/qt@5/5.15.19/lib/QtWidgets.framework/Headers/qwidget.h \
+		vartype.h \
 		/opt/homebrew/Cellar/qt@5/5.15.19/lib/QtCore.framework/Headers/qtimer.h \
 		/opt/homebrew/Cellar/qt@5/5.15.19/lib/QtGui.framework/Headers/QKeyEvent \
 		/opt/homebrew/Cellar/qt@5/5.15.19/lib/QtGui.framework/Headers/qevent.h \
@@ -1135,8 +1133,8 @@ helpwindow.o: helpwindow.cpp helpwindow.h \
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o helpwindow.o helpwindow.cpp
 
 listwindow.o: listwindow.cpp listwindow.h \
-		/opt/homebrew/Cellar/qt@5/5.15.19/lib/QtWidgets.framework/Headers/QDialog \
-		/opt/homebrew/Cellar/qt@5/5.15.19/lib/QtWidgets.framework/Headers/qdialog.h \
+		/opt/homebrew/Cellar/qt@5/5.15.19/lib/QtWidgets.framework/Headers/QWidget \
+		/opt/homebrew/Cellar/qt@5/5.15.19/lib/QtWidgets.framework/Headers/qwidget.h \
 		/opt/homebrew/Cellar/qt@5/5.15.19/lib/QtCore.framework/Headers/qprocess.h \
 		/opt/homebrew/Cellar/qt@5/5.15.19/lib/QtCore.framework/Headers/qfile.h \
 		/opt/homebrew/Cellar/qt@5/5.15.19/lib/QtCore.framework/Headers/QTime \
@@ -1155,8 +1153,8 @@ listwindow.o: listwindow.cpp listwindow.h \
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o listwindow.o listwindow.cpp
 
 logwindow.o: logwindow.cpp logwindow.h \
-		/opt/homebrew/Cellar/qt@5/5.15.19/lib/QtWidgets.framework/Headers/QDialog \
-		/opt/homebrew/Cellar/qt@5/5.15.19/lib/QtWidgets.framework/Headers/qdialog.h \
+		/opt/homebrew/Cellar/qt@5/5.15.19/lib/QtWidgets.framework/Headers/QWidget \
+		/opt/homebrew/Cellar/qt@5/5.15.19/lib/QtWidgets.framework/Headers/qwidget.h \
 		/opt/homebrew/Cellar/qt@5/5.15.19/lib/QtGui.framework/Headers/qstandarditemmodel.h \
 		/opt/homebrew/Cellar/qt@5/5.15.19/lib/QtWidgets.framework/Headers/qscrollbar.h \
 		/opt/homebrew/Cellar/qt@5/5.15.19/lib/QtCore.framework/Headers/QTime \
@@ -1187,8 +1185,6 @@ main.o: main.cpp mainwindow.h \
 		/opt/homebrew/Cellar/qt@5/5.15.19/lib/QtGui.framework/Headers/QKeyEvent \
 		/opt/homebrew/Cellar/qt@5/5.15.19/lib/QtGui.framework/Headers/qevent.h \
 		graphwindow.h \
-		/opt/homebrew/Cellar/qt@5/5.15.19/lib/QtWidgets.framework/Headers/QDialog \
-		/opt/homebrew/Cellar/qt@5/5.15.19/lib/QtWidgets.framework/Headers/qdialog.h \
 		/opt/homebrew/Cellar/qt@5/5.15.19/lib/QtGui.framework/Headers/QPainter \
 		/opt/homebrew/Cellar/qt@5/5.15.19/lib/QtGui.framework/Headers/qpainter.h \
 		/opt/homebrew/Cellar/qt@5/5.15.19/lib/QtCore.framework/Headers/qelapsedtimer.h \
@@ -1205,6 +1201,8 @@ main.o: main.cpp mainwindow.h \
 		/opt/homebrew/Cellar/qt@5/5.15.19/lib/QtCore.framework/Headers/QProcess \
 		/opt/homebrew/Cellar/qt@5/5.15.19/lib/QtCore.framework/Headers/qcoreapplication.h \
 		helpwindow.h \
+		/opt/homebrew/Cellar/qt@5/5.15.19/lib/QtWidgets.framework/Headers/QDialog \
+		/opt/homebrew/Cellar/qt@5/5.15.19/lib/QtWidgets.framework/Headers/qdialog.h \
 		aboutwindow.h \
 		/opt/homebrew/Cellar/qt@5/5.15.19/lib/QtNetwork.framework/Headers/qnetworkaccessmanager.h \
 		/opt/homebrew/Cellar/qt@5/5.15.19/lib/QtNetwork.framework/Headers/qnetworkreply.h \
@@ -1228,6 +1226,8 @@ main.o: main.cpp mainwindow.h \
 		/opt/homebrew/Cellar/qt@5/5.15.19/lib/QtWidgets.framework/Headers/qpushbutton.h \
 		/opt/homebrew/Cellar/qt@5/5.15.19/lib/QtWidgets.framework/Headers/QHBoxLayout \
 		/opt/homebrew/Cellar/qt@5/5.15.19/lib/QtWidgets.framework/Headers/qboxlayout.h \
+		/opt/homebrew/Cellar/qt@5/5.15.19/lib/QtWidgets.framework/Headers/QDockWidget \
+		/opt/homebrew/Cellar/qt@5/5.15.19/lib/QtWidgets.framework/Headers/qdockwidget.h \
 		/opt/homebrew/Cellar/qt@5/5.15.19/lib/QtCore.framework/Headers/QJsonDocument \
 		/opt/homebrew/Cellar/qt@5/5.15.19/lib/QtCore.framework/Headers/qjsondocument.h \
 		/opt/homebrew/Cellar/qt@5/5.15.19/lib/QtCore.framework/Headers/QJsonObject \
@@ -1257,8 +1257,6 @@ mainwindow.o: mainwindow.cpp mainwindow.h \
 		/opt/homebrew/Cellar/qt@5/5.15.19/lib/QtGui.framework/Headers/QKeyEvent \
 		/opt/homebrew/Cellar/qt@5/5.15.19/lib/QtGui.framework/Headers/qevent.h \
 		graphwindow.h \
-		/opt/homebrew/Cellar/qt@5/5.15.19/lib/QtWidgets.framework/Headers/QDialog \
-		/opt/homebrew/Cellar/qt@5/5.15.19/lib/QtWidgets.framework/Headers/qdialog.h \
 		/opt/homebrew/Cellar/qt@5/5.15.19/lib/QtGui.framework/Headers/QPainter \
 		/opt/homebrew/Cellar/qt@5/5.15.19/lib/QtGui.framework/Headers/qpainter.h \
 		/opt/homebrew/Cellar/qt@5/5.15.19/lib/QtCore.framework/Headers/qelapsedtimer.h \
@@ -1275,6 +1273,8 @@ mainwindow.o: mainwindow.cpp mainwindow.h \
 		/opt/homebrew/Cellar/qt@5/5.15.19/lib/QtCore.framework/Headers/QProcess \
 		/opt/homebrew/Cellar/qt@5/5.15.19/lib/QtCore.framework/Headers/qcoreapplication.h \
 		helpwindow.h \
+		/opt/homebrew/Cellar/qt@5/5.15.19/lib/QtWidgets.framework/Headers/QDialog \
+		/opt/homebrew/Cellar/qt@5/5.15.19/lib/QtWidgets.framework/Headers/qdialog.h \
 		aboutwindow.h \
 		/opt/homebrew/Cellar/qt@5/5.15.19/lib/QtNetwork.framework/Headers/qnetworkaccessmanager.h \
 		/opt/homebrew/Cellar/qt@5/5.15.19/lib/QtNetwork.framework/Headers/qnetworkreply.h \
@@ -1298,6 +1298,8 @@ mainwindow.o: mainwindow.cpp mainwindow.h \
 		/opt/homebrew/Cellar/qt@5/5.15.19/lib/QtWidgets.framework/Headers/qpushbutton.h \
 		/opt/homebrew/Cellar/qt@5/5.15.19/lib/QtWidgets.framework/Headers/QHBoxLayout \
 		/opt/homebrew/Cellar/qt@5/5.15.19/lib/QtWidgets.framework/Headers/qboxlayout.h \
+		/opt/homebrew/Cellar/qt@5/5.15.19/lib/QtWidgets.framework/Headers/QDockWidget \
+		/opt/homebrew/Cellar/qt@5/5.15.19/lib/QtWidgets.framework/Headers/qdockwidget.h \
 		/opt/homebrew/Cellar/qt@5/5.15.19/lib/QtCore.framework/Headers/QJsonDocument \
 		/opt/homebrew/Cellar/qt@5/5.15.19/lib/QtCore.framework/Headers/qjsondocument.h \
 		/opt/homebrew/Cellar/qt@5/5.15.19/lib/QtCore.framework/Headers/QJsonObject \

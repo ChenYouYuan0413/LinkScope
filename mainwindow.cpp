@@ -10,20 +10,38 @@ MainWindow::MainWindow(QWidget *parent)
 
     setStylesheet();//设置全局样式表
 
+    // ---- 停靠窗口系统 ----
+    setDockOptions(QMainWindow::AnimatedDocks | QMainWindow::AllowTabbedDocks | QMainWindow::AllowNestedDocks);
+
     graph=new GraphWindow();//创建绘图窗口
     graph->setVarList(&varList);
-    connect(ui->action_show_graph,&QAction::toggled,this,[=](bool checked){graph->setHidden(!checked);});//绑定菜单项到窗口开关
-    connect(graph,&QDialog::rejected,this,[=]{ui->action_show_graph->setChecked(false);});//当窗口关闭时取消勾选菜单
+    graphDock = new QDockWidget("图形", this);
+    graphDock->setWidget(graph);
+    graphDock->setObjectName("GraphDock");
+    addDockWidget(Qt::BottomDockWidgetArea, graphDock);
+    ui->action_show_graph->setChecked(false);
+    connect(ui->action_show_graph, &QAction::toggled, graphDock, &QDockWidget::setVisible);
+    connect(graphDock, &QDockWidget::visibilityChanged, this, [=](bool v){ ui->action_show_graph->setChecked(v); });
 
     listWindow=new ListWindow();//创建选择窗口
     connect(listWindow,SIGNAL(add2Edit(const QString &)),this,SLOT(slotOnVarAdd2Edit(const QString &)));
     connect(listWindow,SIGNAL(add2List(const QString &)),this,SLOT(slotOnVarAdd2List(const QString &)));
-    connect(ui->action_show_selector,&QAction::toggled,this,[=](bool checked){listWindow->setHidden(!checked);});
-    connect(listWindow,&QDialog::rejected,this,[=]{ui->action_show_selector->setChecked(false);});
+    listDock = new QDockWidget("变量选择", this);
+    listDock->setWidget(listWindow);
+    listDock->setObjectName("ListDock");
+    addDockWidget(Qt::LeftDockWidgetArea, listDock);
+    ui->action_show_selector->setChecked(false);
+    connect(ui->action_show_selector, &QAction::toggled, listDock, &QDockWidget::setVisible);
+    connect(listDock, &QDockWidget::visibilityChanged, this, [=](bool v){ ui->action_show_selector->setChecked(v); });
 
     logWindow=new LogWindow();//创建日志窗口
-    connect(ui->action_show_log,&QAction::toggled,this,[=](bool checked){logWindow->setHidden(!checked);});
-    connect(logWindow,&QDialog::rejected,this,[=]{ui->action_show_log->setChecked(false);});
+    logDock = new QDockWidget("日志", this);
+    logDock->setWidget(logWindow);
+    logDock->setObjectName("LogDock");
+    addDockWidget(Qt::RightDockWidgetArea, logDock);
+    ui->action_show_log->setChecked(false);
+    connect(ui->action_show_log, &QAction::toggled, logDock, &QDockWidget::setVisible);
+    connect(logDock, &QDockWidget::visibilityChanged, this, [=](bool v){ ui->action_show_log->setChecked(v); });
 
     stampTimer=new QElapsedTimer();//创建并运行时间戳定时器
     stampTimer->start();
@@ -105,6 +123,28 @@ MainWindow::MainWindow(QWidget *parent)
 
     QDir().mkpath(QDir::homePath()+"/.linkscope");//确保配置目录存在
 
+    // 隐藏已移到高级设置的控件，主窗口只保留变量表和操作栏
+    ui->rb_openocd->setVisible(false);
+    ui->rb_serialocd->setVisible(false);
+    ui->box_openocd->setVisible(false);
+    ui->box_serial->setVisible(false);
+    if (QWidget *sw = findChild<QWidget*>("syncWidget")) sw->setVisible(false);
+    cbFastMode->setVisible(false);
+    ui->groupBox_2->setVisible(false);  // 符号文件选择整行移到高级设置
+
+    // 默认布局：示波器在右侧
+    addDockWidget(Qt::RightDockWidgetArea, graphDock);
+    graphDock->show();
+
+    // 暂停/继续按钮，插入到 bt_reset 后面
+    bt_pause = new QPushButton("暂停");
+    bt_pause->setEnabled(false);
+    connect(bt_pause, &QPushButton::clicked, this, &MainWindow::on_bt_pause_clicked);
+    if (ui->groupBox_4) {
+        QVBoxLayout *vl = qobject_cast<QVBoxLayout*>(ui->groupBox_4->layout());
+        if (vl) vl->insertWidget(vl->indexOf(ui->bt_reset) + 1, bt_pause);
+    }
+
     loadConfFileList();//从openocd文件夹中读取配置文件列表
     loadGlobalConf();//加载软件全局配置
     loadFromFile(QDir::homePath()+"/.linkscope/autosave.ini");//加载自动保存的工程配置
@@ -173,9 +213,6 @@ void MainWindow::closeEvent(QCloseEvent *event)
 {
     Q_UNUSED(event);
     saveGlobalConf();//保存软件全局设置
-    graph->close();//关闭各窗口，退出软件
-    listWindow->close();
-    logWindow->close();
 }
 
 //表格被编辑，添加变量或修改变量值
@@ -497,6 +534,7 @@ void MainWindow::setConnState(bool connect)
 
             ui->bt_conn->setText("断开连接");
             ui->bt_reset->setEnabled(true);//使能复位按钮
+            bt_pause->setEnabled(true);
             ui->rb_openocd->setEnabled(false);//失能连接方式选择
             ui->rb_serialocd->setEnabled(false);
 
@@ -533,6 +571,7 @@ void MainWindow::setConnState(bool connect)
             serialocd->stopConnect();
         ui->bt_conn->setText("连接目标");
         ui->bt_reset->setEnabled(false);//禁用复位按钮
+        bt_pause->setEnabled(false);
         ui->rb_openocd->setEnabled(true);//使能连接方式选择
         ui->rb_serialocd->setEnabled(true);
         syncTimer->stop();
@@ -771,26 +810,46 @@ bool MainWindow::exportCSV(const QString &filename)
 //读取全局配置
 void MainWindow::loadGlobalConf()
 {
-    QSettings settings("conf.ini",QSettings::IniFormat);
+    QSettings settings(QDir::homePath()+"/.linkscope/conf.ini",QSettings::IniFormat);
     settings.setIniCodec("GBK");
 
     ui->action_show_graph->setChecked(settings.value("GraphWindowOpen",true).toBool());
     ui->action_show_selector->setChecked(settings.value("ListWindowOpen",true).toBool());
     ui->action_show_log->setChecked(settings.value("LogWindowOpen",true).toBool());
+    if (settings.contains("DockState"))
+        restoreState(settings.value("DockState").toByteArray());
 }
 
 //保存全局配置
 void MainWindow::saveGlobalConf()
 {
-    QSettings settings("conf.ini",QSettings::IniFormat);
+    QSettings settings(QDir::homePath()+"/.linkscope/conf.ini",QSettings::IniFormat);
     settings.setIniCodec("GBK");
 
-    settings.setValue("GraphWindowOpen",!graph->isHidden());
-    settings.setValue("ListWindowOpen",!listWindow->isHidden());
-    settings.setValue("LogWindowOpen",!logWindow->isHidden());
+    settings.setValue("GraphWindowOpen",graphDock->isVisible());
+    settings.setValue("ListWindowOpen",listDock->isVisible());
+    settings.setValue("LogWindowOpen",logDock->isVisible());
+    settings.setValue("DockState",saveState());
 }
 
 //复位按钮点击，向gdb发送复位指令
+void MainWindow::on_bt_pause_clicked()
+{
+    if (paused) {
+        gdb->runCmd("monitor resume\r\n");
+        watchTimer->start();
+        tableTimer->start();
+        bt_pause->setText("暂停");
+        paused = false;
+    } else {
+        watchTimer->stop();
+        tableTimer->stop();
+        gdb->runCmd("monitor halt\r\n");
+        bt_pause->setText("继续");
+        paused = true;
+    }
+}
+
 void MainWindow::on_bt_reset_clicked()
 {
     if(connected)
@@ -1103,12 +1162,41 @@ void MainWindow::on_cb_ext_openocd_toggled(bool checked)
 void MainWindow::on_action_config_triggered()
 {
     ConfigWindow configWindow;
+    // 同步当前主窗口设置到 configWindowParam
+    configWindowParam.interface = ui->cb_interface->currentText();
+    configWindowParam.target = ui->cb_target->currentText();
+    configWindowParam.extOpenocd = ui->cb_ext_openocd->isChecked();
+    configWindowParam.syncWatch = cbSyncWatch->isChecked();
+    configWindowParam.projectDir = leProjectDir->text();
+    configWindowParam.fastMode = fastMode;
+    configWindowParam.openocdMode = ui->rb_openocd->isChecked();
+    configWindowParam.axfPath = ui->txt_axf_path->text();
+    configWindowParam.interfaceList.clear();
+    configWindowParam.targetList.clear();
+    for (int i = 0; i < ui->cb_interface->count(); i++)
+        configWindowParam.interfaceList << ui->cb_interface->itemText(i);
+    for (int i = 0; i < ui->cb_target->count(); i++)
+        configWindowParam.targetList << ui->cb_target->itemText(i);
     configWindow.setParam(configWindowParam);
+
     if(configWindow.exec()==QDialog::Accepted)
     {
         configWindow.getParam(configWindowParam);
+        // 同步回主窗口的隐藏控件
+        ui->cb_interface->setCurrentText(configWindowParam.interface);
+        ui->cb_target->setCurrentText(configWindowParam.target);
+        ui->cb_ext_openocd->setChecked(configWindowParam.extOpenocd);
+        cbSyncWatch->setChecked(configWindowParam.syncWatch);
+        leProjectDir->setText(configWindowParam.projectDir);
+        ui->rb_openocd->setChecked(configWindowParam.openocdMode);
+        ui->rb_serialocd->setChecked(!configWindowParam.openocdMode);
+        ui->txt_axf_path->setText(configWindowParam.axfPath);
+        if (configWindowParam.syncWatch && !configWindowParam.projectDir.isEmpty())
+            workspaceDbPath = findWorkspaceDb(configWindowParam.projectDir);
+        if (configWindowParam.fastMode != fastMode)
+            cbFastMode->setChecked(configWindowParam.fastMode);
         if (!fastMode)
-        watchTimer->setInterval(1000/configWindowParam.sampleFreq);
+            watchTimer->setInterval(1000/configWindowParam.sampleFreq);
         saveToFile(QDir::homePath()+"/.linkscope/autosave.ini");
     }
 }
@@ -1234,6 +1322,7 @@ void MainWindow::syncWatchVars()
         }
     }
     if (changed) {
+        if (fastMode) resolveVarAddresses();  // 新增变量需要解析地址和类型
         redrawTable();
         updateGDBList();
     }
@@ -1291,6 +1380,8 @@ void MainWindow::resolveVarAddresses()
     QString nmOutput = nm.readAllStandardOutput();
 
     for (int i = 0; i < varList.size(); i++) {
+        if (varList[i].address) continue;  // 已有地址，跳过
+
         // ---- 解析 nm -S 输出获取地址和大小 ----
         // nm -S 格式: "20000014 00000004 b u32_val"
         QRegExp nmRx(QString("^([0-9a-fA-F]+)\\s+([0-9a-fA-F]+)\\s+\\w\\s+%1$")

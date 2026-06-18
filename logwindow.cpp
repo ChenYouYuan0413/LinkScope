@@ -2,7 +2,7 @@
 #include "ui_logwindow.h"
 
 LogWindow::LogWindow(QWidget *parent) :
-    QDialog(parent),
+    QWidget(parent),
     ui(new Ui::LogWindow)
 {
     ui->setupUi(this);

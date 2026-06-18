@@ -1,7 +1,7 @@
 #ifndef GRAPHWINDOW_H
 #define GRAPHWINDOW_H
 
-#include <QDialog>
+#include <QWidget>
 #include <vartype.h>
 #include <qtimer.h>
 #include <QKeyEvent>
@@ -13,7 +13,7 @@ namespace Ui {
 class GraphWindow;
 }
 
-class GraphWindow : public QDialog
+class GraphWindow : public QWidget
 {
     Q_OBJECT
 
